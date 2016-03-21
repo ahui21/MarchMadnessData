@@ -2,22 +2,28 @@ import sys
 from lxml import html
 import requests
 from fractions import gcd
+import random
+import operator
 
 webURL = ''
 teams = {}
-bracket = {'East': {1: {}, 2: {}, 3: {}, 4: {}},
-           'West': {1: {}, 2: {}, 3: {}, 4: {}},
-           'Midwest': {1: {}, 2: {}, 3: {}, 4: {}},
-           'South': {1: {}, 2: {}, 3: {}, 4: {}}}
+bracket = {'East': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
+           'West': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
+           'Midwest': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
+           'South': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}}}
+totalCount = {1: {}, 2: {}, 3: {}, 4: {}, 5:{}}
+numOfTrials = 21
 
 def parse_args():
 	global webURL
+	global numOfTrials
 
-	if len(sys.argv) == 2:
+	if len(sys.argv) == 3:
 		if sys.argv[1] == 'default':
 			webURL = 'http://fivethirtyeight.com/features/how-fivethirtyeight-is-forecasting-the-2016-ncaa-tournament/'
 		else:
 			webURL = sys.argv[1]
+		numOfTrials = int(sys.argv[2])
 	else:
 		raise ValueError('Incorrect number of arguments (%i) found.' % len(sys.argv))
 
@@ -96,7 +102,7 @@ def scraper():
 
 	teams.pop('Fairleigh Dickinson', None)
 	teams.pop('Vanderbilt', None)
-	teams.pop('Holy Cross', None)
+	teams.pop('Southern', None)
 	teams.pop('Tulsa', None)
 
 def createBracket():
@@ -110,26 +116,73 @@ def createBracket():
 		if seed < 9:
 			for team2 in teams:
 				if teams[team2][0][0] == region and teams[team2][0][1] == 17 - seed:
-					bracket[region][1][seed] = (team1, team2)
+					bracket[region][1][seed] = [team1, team2]
 
-def probSim(roundNumber):
+def runNumOfTrials(inputNumOfTrials):
+	global totalCount
+
+	for i in range(inputNumOfTrials):
+		runFullBracket()
+
+		for i in range(1, 6):
+			for region in bracket:
+				for j in bracket[region][i]:
+					for k in bracket[region][i][j]:
+						if k in totalCount[i]:
+							totalCount[i][k] = totalCount[i][k] + 1
+						else:
+							totalCount[i][k] = 1
+
+def runFullBracket():
+	regionalRoundSim(1)
+	regionalRoundSim(2)
+	regionalRoundSim(3)
+	regionalRoundSim(4)
+
+def regionalRoundSim(roundNumber):
 	for region in bracket:
 		relevantMatchups = bracket[region][roundNumber]
 
+		if roundNumber < 4:
+			for i in range(2 ** (3 - roundNumber)):
+				bracket[region][roundNumber + 1][i + 1] = []
+		else:
+			bracket[region][roundNumber + 1][1] = []
+
 		for matchup in relevantMatchups:
-			team1ELO = teams[relevantMatchups[matchup][0]][1][0]
-			team2ELO = teams[relevantMatchups[matchup][1]][1][0]
+			probOfTeam1Win = probSim(relevantMatchups[matchup])
+			
+			randomNum = random.random()
 
-			probOfTeam1Win = 1/(10 ** (float(team2ELO - team1ELO) / 400)  + 1)
+			numOfRounds = 2 ** (4 - roundNumber)
+			nextRound = min(matchup, numOfRounds + 1 - matchup)
 
-			print team1ELO, team2ELO, relevantMatchups[matchup], probOfTeam1Win
+			if randomNum <= probOfTeam1Win:
+				bracket[region][roundNumber + 1][nextRound].append(relevantMatchups[matchup][0])
+			else:
+				bracket[region][roundNumber + 1][nextRound].append(relevantMatchups[matchup][1])
 
+def probSim(matchup):
+	team1ELO = teams[matchup[0]][1][0]
+	team2ELO = teams[matchup[1]][1][0]
+
+	return 1/(10 ** (float(team2ELO - team1ELO) / 400)  + 1)
+
+def printResults():
+	global totalCount
+
+	for i in range(1, 6):
+		print '\n'
+		sorted_rounds = sorted(totalCount[i].items(), key = operator.itemgetter(1), reverse = True)
+		for i in sorted_rounds:
+			print i
 
 def main():
 	parse_args()
 	scraper()
 	createBracket()
-	probSim(1)
+	runNumOfTrials(numOfTrials)
+	printResults()
 
 if __name__ == '__main__':
 	main()
