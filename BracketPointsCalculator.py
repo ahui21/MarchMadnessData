@@ -1,31 +1,59 @@
-import sys
-from lxml import html
-import requests
-from fractions import gcd
 import random
-import operator
+import math
 
-webURL = ''
-teams = {}
-bracket = {'East': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
-           'West': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
-           'Midwest': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}},
-           'South': {1: {}, 2: {}, 3: {}, 4: {}, 5:{}}}
-totalCount = {1: {}, 2: {}, 3: {}, 4: {}, 5:{}}
-numOfTrials = 21
+bracket = {0: {1: ['Villanova', 'Oklahoma'], 2: ['UNC', 'Syracuse']},
+           1: {1: []},
+           2: {1: []}}
 
-def parse_args():
-	global webURL
-	global numOfTrials
+teamProbabilities = {'Villanova': [.54, .28],
+					 'Oklahoma': [.46, .22],
+					 'UNC': [.70, .38],
+					 'Syracuse': [.30, .11]}
 
-	if len(sys.argv) == 3:
-		if sys.argv[1] == 'default':
-			webURL = 'http://fivethirtyeight.com/features/how-fivethirtyeight-is-forecasting-the-2016-ncaa-tournament/'
-		else:
-			webURL = sys.argv[1]
-		numOfTrials = int(sys.argv[2])
-	else:
-		raise ValueError('Incorrect number of arguments (%i) found.' % len(sys.argv))
+count = {'Villanova': [0, 0],
+		 'Oklahoma': [0, 0],
+		 'UNC': [0, 0],
+		 'Syracuse': [0, 0]}
+
+individuals = {'Simon': {'points': [920, 160], 'choices': ['Oklahoma', 'Virginia', 'Virginia']},
+			   'Olivia': {'points': [710, 480], 'choices': ['Maryland', 'UNC', 'UNC']},
+			   'Tyler': {'points': [570, 0], 'choices': ['Oregon', 'Michigan State', 'Michigan State']},
+			   'Sasha': {'points': [510, 0], 'choices': ['Duke', 'Iowa State', 'Duke']},
+			   'Nathan': {'points': [500, 0], 'choices': ['Maryland', 'Virginia', 'Maryland']},
+			   'Andrea': {'points': [240, 0], 'choices': ['Maryland', 'Providence', 'Maryland']},
+			   'Alwin': {'points': [800, 0], 'choices': ['Kansas', 'Michigan State', 'Kansas']}}
+
+def create_scenario():
+	global bracket
+	global teamProbabilities
+
+	for i in range(2):
+		for j in bracket[i]:
+			totalProbability = 0.0
+
+			for k in bracket[i][j]:
+				totalProbability = totalProbability + teamProbabilities[k][i]
+
+			randomNumber = random.random()
+
+			if randomNumber <= teamProbabilities[bracket[i][j][0]][i]/totalProbability:
+				bracket[i + 1][int(math.log(j + 1, 2))].append(bracket[i][j][0])
+			else:
+				bracket[i + 1][int(math.log(j + 1, 2))].append(bracket[i][j][1])
+
+def counter():
+	global bracket
+	global count
+	for i in range(2):
+		for j in bracket[i + 1]:
+			for k in bracket[i + 1][j]:
+				count[k][i] = count[k][i] + 1
+
+def reset():
+	global bracket
+	bracket = {0: {1: ['Villanova', 'Oklahoma'], 2: ['UNC', 'Syracuse']},
+ 	           1: {1: []},
+	           2: {1: []}}
 
 def scraper():
 	global teams
@@ -178,14 +206,13 @@ def printResults():
 			print i
 
 def main():
-	parse_args()
-	scraper()
-	createBracket()
-	runNumOfTrials(numOfTrials)
-	printResults()
+	for i in range(1000000..):
+		create_scenario()
+		counter()
+		reset()
 
-	for team in teams:
-		print team
+	for i in count:
+		print i, '\t', float(count[i][0])/1000000, float(count[i][1])/1000000
 
 if __name__ == '__main__':
 	main()
